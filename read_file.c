@@ -23,6 +23,21 @@ void read_matrix(char* filename, int n, int m, double (*matrix)[n]) {
     fclose(file);
 }
 
+void write_matrix(char* filename, int n, int m, double (*matrix)[n]) {
+    FILE *file = fopen(filename, "w");
+
+
+    for (int i  = 0; i < 50; i++) {
+        for (int j  = 0; j < 50; j++) {
+            fprintf(file, "%f\n", matrix[i][j]);
+
+        }
+    }
+
+    fclose(file);
+}
+
+
 int main() {
     double matrixA[50][50];
     double matrixB[50][50];
@@ -35,5 +50,6 @@ int main() {
         }
     }
 
+    write_matrix("output.txt", 50, 50, matrixB);
     return 0;
 }
