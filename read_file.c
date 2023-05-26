@@ -5,18 +5,14 @@ void read_matrix(char* filename, int n, int m, double (*matrix)[n]) {
     FILE *file = fopen(filename, "r");
 
     char buffer[256];
-    int i = 0;
-    int j = 0;
     double value;
-    while(fgets(buffer, 256, file) && i < n && j < m) {
-        value = atof(buffer);
-        matrix[i][j] = value;
 
-        i++;
+    for (int i  = 0; i < n; i++) {
+        for (int j  = 0; j < m; j++) {
+            fgets(buffer, 256, file);
 
-        if(i >= n) {
-            j++;
-            i = 0;
+            value = atof(buffer);
+            matrix[i][j] = value;
         }
     }
 
@@ -26,9 +22,8 @@ void read_matrix(char* filename, int n, int m, double (*matrix)[n]) {
 void write_matrix(char* filename, int n, int m, double (*matrix)[n]) {
     FILE *file = fopen(filename, "w");
 
-
-    for (int i  = 0; i < 50; i++) {
-        for (int j  = 0; j < 50; j++) {
+    for (int i  = 0; i < n; i++) {
+        for (int j  = 0; j < m; j++) {
             fprintf(file, "%f\n", matrix[i][j]);
 
         }
@@ -37,19 +32,40 @@ void write_matrix(char* filename, int n, int m, double (*matrix)[n]) {
     fclose(file);
 }
 
+void mult_mat(int n, int m, double (*A)[n], double (*B)[n], double (*C)[n]) {
+    for (int rowNum = 0; rowNum < n; rowNum++) {
+        for (int colNum = 0; colNum < m; colNum ++){
+            double acum = 0;
+
+            for (int i = 0; i < n; i++) {
+                acum = acum + A[rowNum][i]*B[i][colNum];
+            }
+
+            C[rowNum][colNum] = acum;
+        }
+    }
+}
 
 int main() {
-    double matrixA[50][50];
-    double matrixB[50][50];
-    read_matrix("matrixA2500.txt", 50, 50, matrixA);
-    read_matrix("matrixB2500.txt", 50, 50, matrixB);
+    int n, m;
+    n = m = 50;
 
-    for (int i  = 0; i < 50; i++) {
-        for (int j  = 0; j < 50; j++) {
-            printf("%f\n", matrixA[i][j]);
+    double matrixA[n][m];
+    double matrixB[n][m];
+    double matrixC[n][m];
+    read_matrix("matrixA2500.txt", n, m, matrixA);
+    read_matrix("matrixB2500.txt", n, m, matrixB);
+    // read_matrix("testSmallA.txt", n, m, matrixA);
+    // read_matrix("testSmallB.txt", n, m, matrixB);
+
+    mult_mat(n, m, matrixA, matrixB, matrixC);
+    write_matrix("output.txt", n, m, matrixC);
+
+    for (int i  = 0; i < n; i++) {
+        for (int j  = 0; j < m; j++) {
+            printf("%f\n", matrixC[i][j]);
         }
     }
 
-    write_matrix("output.txt", 50, 50, matrixB);
     return 0;
 }
