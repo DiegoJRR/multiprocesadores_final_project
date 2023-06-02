@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void read_matrix(char* filename, int n, int m, double (*matrix)[n]) {
+// TODO: If matrix does not fit in memory, exit and show error
+
+void read_matrix(char* filename, int n, int m, double* matrix) {
     FILE *file = fopen(filename, "r");
 
     char buffer[256];
@@ -12,7 +14,7 @@ void read_matrix(char* filename, int n, int m, double (*matrix)[n]) {
             fgets(buffer, 256, file);
 
             value = atof(buffer);
-            matrix[i][j] = value;
+            matrix[i * m + j] = value;
         }
     }
 
@@ -32,40 +34,65 @@ void write_matrix(char* filename, int n, int m, double (*matrix)[n]) {
     fclose(file);
 }
 
-void mult_mat(int n, int m, double (*A)[n], double (*B)[n], double (*C)[n]) {
+void mult_mat(int n, int m, double* A, double* B, double* C) {
     for (int rowNum = 0; rowNum < n; rowNum++) {
         for (int colNum = 0; colNum < m; colNum ++){
             double acum = 0;
 
             for (int i = 0; i < n; i++) {
-                acum = acum + A[rowNum][i]*B[i][colNum];
+                acum = acum + A[rowNum*m + i]*B[i*m + colNum];
             }
 
-            C[rowNum][colNum] = acum;
+            C[rowNum*m + colNum] = acum;
         }
     }
 }
 
-int main() {
-    int n, m;
-    n = m = 50;
+void get_matrix_shape(int *n, int *m, char *matrixLetter) {
+    printf("Enter the shape for matrix %s (n x m)\n", matrixLetter);
+    printf("First, the number of rows (n):\n");
+    scanf("%d", n);  
+    printf("Now the number of columns (m):\n");
+    scanf("%d", m);  
+    printf("The shape of matrix %s is %d x %d\n", matrixLetter, *n, *m);
+}
 
-    double matrixA[n][m];
-    double matrixB[n][m];
-    double matrixC[n][m];
-    read_matrix("matrixA2500.txt", n, m, matrixA);
-    read_matrix("matrixB2500.txt", n, m, matrixB);
-    // read_matrix("testSmallA.txt", n, m, matrixA);
-    // read_matrix("testSmallB.txt", n, m, matrixB);
+int main(int arge, char *argv[]) {
+    if(arge < 2) {
+        printf("No arguments given");
+        return 1;
+    } 
+
+    int n, m;
+    int o, p;
+    n = m = o = p = 2;
+    
+    // Ask the user for the shape of the matrix
+    // get_matrix_shape(&n, &m, "A");
+    // get_matrix_shape(&p, &o, "B");
+
+    // TODO: NxM should correspond to the number of lines in the file 
+    // Validate matrix shapes for multiplication 
+    if(m != p) {
+        printf("The matrix A with size (%dx%d) cannot be multiplied with matrix B of size (%dx%d)", n, m, p, o);
+        return 1;
+    }
+    
+    double* matrixA = malloc((n*m) * sizeof(double));
+    double* matrixB = malloc((n*m) * sizeof(double));
+    double* matrixC = malloc((n*m) * sizeof(double));
+    read_matrix(argv[1], n, m, matrixA);
+    read_matrix(argv[2], n, m, matrixB);
 
     mult_mat(n, m, matrixA, matrixB, matrixC);
-    write_matrix("output.txt", n, m, matrixC);
+    // write_matrix("output.txt", n, m, matrixC);
 
     for (int i  = 0; i < n; i++) {
         for (int j  = 0; j < m; j++) {
-            printf("%f\n", matrixC[i][j]);
+            printf("%f\n", matrixC[i*m + j]);
         }
     }
 
+    printf("Finished program correctly\n");
     return 0;
 }

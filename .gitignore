@@ -53,3 +53,5 @@ dkms.conf
 
 # Ignore input and ouput files
 *.txt
+
+.DS_Store
