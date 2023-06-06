@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 // TODO: If matrix does not fit in memory, exit and show error
+// TODO: Error if number of lines does not match NxM
 
 void read_matrix(char* filename, int n, int m, double* matrix) {
     FILE *file = fopen(filename, "r");
@@ -21,12 +22,12 @@ void read_matrix(char* filename, int n, int m, double* matrix) {
     fclose(file);
 }
 
-void write_matrix(char* filename, int n, int m, double (*matrix)[n]) {
+void write_matrix(char* filename, int n, int m, double* matrix) {
     FILE *file = fopen(filename, "w");
 
     for (int i  = 0; i < n; i++) {
         for (int j  = 0; j < m; j++) {
-            fprintf(file, "%f\n", matrix[i][j]);
+            fprintf(file, "%lf\n", matrix[i*m + j]);
 
         }
     }
@@ -34,16 +35,19 @@ void write_matrix(char* filename, int n, int m, double (*matrix)[n]) {
     fclose(file);
 }
 
-void mult_mat(int n, int m, double* A, double* B, double* C) {
+void mult_mat(int n, int m, int p, double* A, double* B, double* C) {
+    //  For each row in A matrix, we do a dot product with the corresponding B column 
+    //  And save this result in C
+
     for (int rowNum = 0; rowNum < n; rowNum++) {
-        for (int colNum = 0; colNum < m; colNum ++){
+        for (int colNum = 0; colNum < p; colNum ++){
             double acum = 0;
 
-            for (int i = 0; i < n; i++) {
-                acum = acum + A[rowNum*m + i]*B[i*m + colNum];
+            for (int i = 0; i < m; i++) {
+                acum += A[rowNum*m + i]*B[i*p + colNum];
             }
 
-            C[rowNum*m + colNum] = acum;
+            C[rowNum*p + colNum] = acum;
         }
     }
 }
@@ -65,7 +69,8 @@ int main(int arge, char *argv[]) {
 
     int n, m;
     int o, p;
-    n = m = o = p = 2;
+    n = p = 1000;
+    m = o = 10;
     
     // Ask the user for the shape of the matrix
     // get_matrix_shape(&n, &m, "A");
@@ -73,25 +78,32 @@ int main(int arge, char *argv[]) {
 
     // TODO: NxM should correspond to the number of lines in the file 
     // Validate matrix shapes for multiplication 
-    if(m != p) {
+    if(m != o) {
         printf("The matrix A with size (%dx%d) cannot be multiplied with matrix B of size (%dx%d)", n, m, p, o);
         return 1;
     }
     
     double* matrixA = malloc((n*m) * sizeof(double));
-    double* matrixB = malloc((n*m) * sizeof(double));
-    double* matrixC = malloc((n*m) * sizeof(double));
-    read_matrix(argv[1], n, m, matrixA);
-    read_matrix(argv[2], n, m, matrixB);
+    double* matrixB = malloc((o*p) * sizeof(double));
+    double* matrixC = malloc((n*p) * sizeof(double));
 
-    mult_mat(n, m, matrixA, matrixB, matrixC);
-    // write_matrix("output.txt", n, m, matrixC);
-
-    for (int i  = 0; i < n; i++) {
-        for (int j  = 0; j < m; j++) {
-            printf("%f\n", matrixC[i*m + j]);
-        }
+    // TODO: Test this properly
+    if(matrixA == NULL || matrixB == NULL || matrixC == NULL) {
+        printf("The matrices are too large, not enough memory to allocate them\n");
+        return 1;
     }
+
+    read_matrix(argv[1], n, m, matrixA);
+    read_matrix(argv[2], o, p, matrixB);
+
+    mult_mat(n, m, p, matrixA, matrixB, matrixC);
+    write_matrix("output.txt", n, p, matrixC);
+
+    // for (int i  = 0; i < n; i++) {
+    //     for (int j  = 0; j < m; j++) {
+    //         printf("%f\n", matrixC[i*m + j]);
+    //     }
+    // }
 
     printf("Finished program correctly\n");
     return 0;
