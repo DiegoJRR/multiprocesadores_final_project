@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 // TODO: If matrix does not fit in memory, exit and show error
 // TODO: Error if number of lines does not match NxM
@@ -27,17 +28,18 @@ void write_matrix(char* filename, int n, int m, double* matrix) {
 
     for (int i  = 0; i < n; i++) {
         for (int j  = 0; j < m; j++) {
-            fprintf(file, "%lf\n", matrix[i*m + j]);
-
+            fprintf(file, "%.10f\n", matrix[i*m + j]);
         }
     }
 
     fclose(file);
 }
 
-void mult_mat(int n, int m, int p, double* A, double* B, double* C) {
+int mult_mat(int n, int m, int p, double* A, double* B, double* C) {
     //  For each row in A matrix, we do a dot product with the corresponding B column 
     //  And save this result in C
+    clock_t start, end;
+    start = clock();
 
     for (int rowNum = 0; rowNum < n; rowNum++) {
         for (int colNum = 0; colNum < p; colNum ++){
@@ -50,6 +52,9 @@ void mult_mat(int n, int m, int p, double* A, double* B, double* C) {
             C[rowNum*p + colNum] = acum;
         }
     }
+
+    end = clock();
+    return end-start;
 }
 
 void get_matrix_shape(int *n, int *m, char *matrixLetter) {
@@ -61,6 +66,26 @@ void get_matrix_shape(int *n, int *m, char *matrixLetter) {
     printf("The shape of matrix %s is %d x %d\n", matrixLetter, *n, *m);
 }
 
+void print_results(int *serial_times, int *openmp_times, int *cuda_times) {
+    printf("Corrida | Serial     | OpenMP       | CUDA         |\n");
+
+    float serial_avg = 0;
+    float openmp_avg = 0;
+    float cuda_avg = 0;
+
+    for (int iter = 0; iter < 5; iter++) {
+        serial_avg += serial_times[iter]/5.0;
+        openmp_avg += openmp_times[iter]/5.0;
+        cuda_avg += cuda_times[iter]/5.0;
+
+        printf("%d       |", iter + 1);
+        printf(" %d    |   %d    |   %d    | \n", serial_times[iter], openmp_times[iter], cuda_times[iter]);
+    }
+
+    printf("Promedio | %f | %f | %f |\n", serial_avg, openmp_avg, cuda_avg);
+    printf("%% vs Serial |   -   | %f | %f |\n", openmp_avg/serial_avg, cuda_avg/serial_avg);
+}
+
 int main(int arge, char *argv[]) {
     if(arge < 2) {
         printf("No arguments given");
@@ -69,8 +94,8 @@ int main(int arge, char *argv[]) {
 
     int n, m;
     int o, p;
-    n = p = 1000;
-    m = o = 10;
+    n = p = 1024;
+    m = o = 1024;
     
     // Ask the user for the shape of the matrix
     // get_matrix_shape(&n, &m, "A");
@@ -87,6 +112,11 @@ int main(int arge, char *argv[]) {
     double* matrixB = malloc((o*p) * sizeof(double));
     double* matrixC = malloc((n*p) * sizeof(double));
 
+    // Execution time arrays
+    int serial_times[5];
+    int openmp_times[5];
+    int cuda_times[5];
+
     // TODO: Test this properly
     if(matrixA == NULL || matrixB == NULL || matrixC == NULL) {
         printf("The matrices are too large, not enough memory to allocate them\n");
@@ -96,15 +126,18 @@ int main(int arge, char *argv[]) {
     read_matrix(argv[1], n, m, matrixA);
     read_matrix(argv[2], o, p, matrixB);
 
-    mult_mat(n, m, p, matrixA, matrixB, matrixC);
-    write_matrix("output.txt", n, p, matrixC);
+    for(int iteration = 0; iteration < 5; iteration ++) {
+        int time_to_mult = mult_mat(n, m, p, matrixA, matrixB, matrixC);
+        // printf("Time to mult serial: %d ms\n", time_to_mult);
+        
+        // TODO: Execute the other methods properly
+        serial_times[iteration] = time_to_mult;
+        openmp_times[iteration] = time_to_mult;
+        cuda_times[iteration] = time_to_mult;
+    }
 
-    // for (int i  = 0; i < n; i++) {
-    //     for (int j  = 0; j < m; j++) {
-    //         printf("%f\n", matrixC[i*m + j]);
-    //     }
-    // }
+    write_matrix("matrizC.txt", n, p, matrixC);
 
-    printf("Finished program correctly\n");
+    print_results(serial_times, openmp_times, cuda_times);
     return 0;
 }
