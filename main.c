@@ -1,11 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <omp.h>
 
-// TODO: If matrix does not fit in memory, exit and show error
-// TODO: Error if number of lines does not match NxM
-
-void read_matrix(char* filename, int n, int m, double* matrix) {
+int read_matrix(char* filename, int n, int m, double* matrix) {
     FILE *file = fopen(filename, "r");
 
     char buffer[256];
@@ -13,14 +11,26 @@ void read_matrix(char* filename, int n, int m, double* matrix) {
 
     for (int i  = 0; i < n; i++) {
         for (int j  = 0; j < m; j++) {
-            fgets(buffer, 256, file);
+            char* found = fgets(buffer, 256, file);
 
             value = atof(buffer);
+            if (! value) {
+                printf("Not enough lines in file '%s'", filename);
+                return 1;
+            }
             matrix[i * m + j] = value;
         }
     }
+    
+    // We expect one empty line at the end of the file
+    fgets(buffer, 256, file);
+    if (fgets(buffer, 256, file)) {
+        printf("More lines than expected in file '%s'", filename);
+        return 1;
+    }
 
     fclose(file);
+    return 0;
 }
 
 void write_matrix(char* filename, int n, int m, double* matrix) {
@@ -52,6 +62,17 @@ int mult_mat(int n, int m, int p, double* A, double* B, double* C) {
             C[rowNum*p + colNum] = acum;
         }
     }
+
+    end = clock();
+    return end-start;
+}
+
+int openmp_mult(int n, int m, int p, double* A, double* B, double* C) {
+    omp_set_num_teams(4);
+
+    clock_t start, end;
+    start = clock();
+    
 
     end = clock();
     return end-start;
@@ -101,7 +122,6 @@ int main(int arge, char *argv[]) {
     // get_matrix_shape(&n, &m, "A");
     // get_matrix_shape(&p, &o, "B");
 
-    // TODO: NxM should correspond to the number of lines in the file 
     // Validate matrix shapes for multiplication 
     if(m != o) {
         printf("The matrix A with size (%dx%d) cannot be multiplied with matrix B of size (%dx%d)", n, m, p, o);
@@ -123,17 +143,22 @@ int main(int arge, char *argv[]) {
         return 1;
     }
 
-    read_matrix(argv[1], n, m, matrixA);
-    read_matrix(argv[2], o, p, matrixB);
+    if(read_matrix(argv[1], n, m, matrixA)) {
+        return 1;
+    };
+
+    if(read_matrix(argv[2], o, p, matrixB)) {
+        return 1;
+    }
 
     for(int iteration = 0; iteration < 5; iteration ++) {
-        int time_to_mult = mult_mat(n, m, p, matrixA, matrixB, matrixC);
-        // printf("Time to mult serial: %d ms\n", time_to_mult);
+        int time_serial = mult_mat(n, m, p, matrixA, matrixB, matrixC);
+        openmp_mult(n, m, p, matrixA, matrixB, matrixC);
         
         // TODO: Execute the other methods properly
-        serial_times[iteration] = time_to_mult;
-        openmp_times[iteration] = time_to_mult;
-        cuda_times[iteration] = time_to_mult;
+        serial_times[iteration] = time_serial;
+        openmp_times[iteration] = time_serial;
+        cuda_times[iteration] = time_serial;
     }
 
     write_matrix("matrizC.txt", n, p, matrixC);

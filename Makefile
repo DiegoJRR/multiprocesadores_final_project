@@ -1,5 +1,5 @@
 compile:
-	gcc -o main_obj.o main.c
+	gcc-13 -o main_obj.o main.c -fopenmp
 
 clean:
 	rm -rf main_obj.o;
