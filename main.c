@@ -45,11 +45,12 @@ void write_matrix(char* filename, int n, int m, double* matrix) {
     fclose(file);
 }
 
-int mult_mat(int n, int m, int p, double* A, double* B, double* C) {
+double mult_mat(int n, int m, int p, double* A, double* B, double* C) {
     //  For each row in A matrix, we do a dot product with the corresponding B column 
     //  And save this result in C
-    clock_t start, end;
-    start = clock();
+    struct timespec start, finish;
+    double elapsed;
+    clock_gettime(CLOCK_MONOTONIC, &start);
 
     for (int rowNum = 0; rowNum < n; rowNum++) {
         for (int colNum = 0; colNum < p; colNum ++){
@@ -63,19 +64,35 @@ int mult_mat(int n, int m, int p, double* A, double* B, double* C) {
         }
     }
 
-    end = clock();
-    return end-start;
+    clock_gettime(CLOCK_MONOTONIC, &finish);
+    elapsed = (finish.tv_sec - start.tv_sec);
+    elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
+    return elapsed;
 }
 
-int openmp_mult(int n, int m, int p, double* A, double* B, double* C) {
-    omp_set_num_teams(4);
+double openmp_mult(int n, int m, int p, double* A, double* B, double* C) {
+    struct timespec start, finish;
+    double elapsed;
+    clock_gettime(CLOCK_MONOTONIC, &start);
 
-    clock_t start, end;
-    start = clock();
-    
+    #pragma omp parallel for num_threads(8)
+    for (int rowNum = 0; rowNum < n; rowNum++) {
+        // printf("Executing on thread %d/%d\n", omp_get_thread_num(), omp_get_max_threads());
+        for (int colNum = 0; colNum < p; colNum ++){
+            double acum = 0;
 
-    end = clock();
-    return end-start;
+            for (int i = 0; i < m; i++) {
+                acum += A[rowNum*m + i]*B[i*p + colNum];
+            }
+
+            C[rowNum*p + colNum] = acum;
+        }
+    }
+
+    clock_gettime(CLOCK_MONOTONIC, &finish);
+    elapsed = (finish.tv_sec - start.tv_sec);
+    elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
+    return elapsed;
 }
 
 void get_matrix_shape(int *n, int *m, char *matrixLetter) {
@@ -87,8 +104,8 @@ void get_matrix_shape(int *n, int *m, char *matrixLetter) {
     printf("The shape of matrix %s is %d x %d\n", matrixLetter, *n, *m);
 }
 
-void print_results(int *serial_times, int *openmp_times, int *cuda_times) {
-    printf("Corrida | Serial     | OpenMP       | CUDA         |\n");
+void print_results(double *serial_times, double *openmp_times, double *cuda_times) {
+    printf("Corrida | Serial     | OpenMP (8 threads)   | CUDA         |\n");
 
     float serial_avg = 0;
     float openmp_avg = 0;
@@ -100,11 +117,23 @@ void print_results(int *serial_times, int *openmp_times, int *cuda_times) {
         cuda_avg += cuda_times[iter]/5.0;
 
         printf("%d       |", iter + 1);
-        printf(" %d    |   %d    |   %d    | \n", serial_times[iter], openmp_times[iter], cuda_times[iter]);
+        printf(" %f    |   %f    |   %f    | \n", serial_times[iter], openmp_times[iter], cuda_times[iter]);
     }
 
     printf("Promedio | %f | %f | %f |\n", serial_avg, openmp_avg, cuda_avg);
     printf("%% vs Serial |   -   | %f | %f |\n", openmp_avg/serial_avg, cuda_avg/serial_avg);
+}
+
+int compare_matrix(double* A, double* B, int n, int m) {
+    for (int i  = 0; i < n; i++) {
+        for (int j  = 0; j < m; j++) {
+            if(A[i*m + j] != B[i*m + j]) {
+                return 1;
+            }
+        }
+    }
+
+    return 0;
 }
 
 int main(int arge, char *argv[]) {
@@ -131,11 +160,12 @@ int main(int arge, char *argv[]) {
     double* matrixA = malloc((n*m) * sizeof(double));
     double* matrixB = malloc((o*p) * sizeof(double));
     double* matrixC = malloc((n*p) * sizeof(double));
+    double* temp = malloc((n*p) * sizeof(double));
 
     // Execution time arrays
-    int serial_times[5];
-    int openmp_times[5];
-    int cuda_times[5];
+    double serial_times[5];
+    double openmp_times[5];
+    double cuda_times[5];
 
     // TODO: Test this properly
     if(matrixA == NULL || matrixB == NULL || matrixC == NULL) {
@@ -152,12 +182,19 @@ int main(int arge, char *argv[]) {
     }
 
     for(int iteration = 0; iteration < 5; iteration ++) {
-        int time_serial = mult_mat(n, m, p, matrixA, matrixB, matrixC);
-        openmp_mult(n, m, p, matrixA, matrixB, matrixC);
+        double time_serial = mult_mat(n, m, p, matrixA, matrixB, matrixC);
+        double omp_time = openmp_mult(n, m, p, matrixA, matrixB, temp);
+        if(compare_matrix(matrixC, temp, n, p)) {
+            printf("Error in OpenMP code, matrix does not match serial version\n");
+        } else {
+            printf("OpenMP version gives same matrix as serial!\n");
+        }
+
+        // double cuda_time = openmp_mult(n, m, p, matrixA, matrixB, matrixC);
         
         // TODO: Execute the other methods properly
         serial_times[iteration] = time_serial;
-        openmp_times[iteration] = time_serial;
+        openmp_times[iteration] = omp_time;
         cuda_times[iteration] = time_serial;
     }
 
