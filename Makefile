@@ -1,8 +1,13 @@
 compile:
-	gcc-13 -o main_obj.o main.c -fopenmp
+	nvcc main.cu -o main_obj.o -Xcompiler -fopenmp
 
 clean:
 	rm -rf main_obj.o;
+
+run:
+	make clean;
+	make compile;
+	./main_obj.o "matrizA.txt" "matrizB.txt";
 
 clean_run:
 	make clean;
